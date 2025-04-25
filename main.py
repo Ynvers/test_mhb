@@ -57,9 +57,9 @@ async def analyze_image(file: UploadFile = File(...)):
 
         # Parse la réponse texte en JSON Python
         result_json = json.loads(response.text)
-        
+
         # Retourner la réponse sous forme de JSON
-        return JSONResponse(content={"result": result})
+        return JSONResponse(content={"result": result_json})
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"message": f"An error occurred: {str(e)}"})
