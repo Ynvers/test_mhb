@@ -6,6 +6,7 @@ import google.generativeai as genai
 from io import BytesIO
 import os
 import json
+import re
 
 
 # Configuration
@@ -30,36 +31,80 @@ Si c’est le cas, classez-le selon l’une des catégories suivantes :
    
 Si l’objet n’est pas dans la liste, indiquez "recyclable": false
 
-Renvoyez votre réponse au format JSON suivant :
+TU DOIS RÉPONDRE UNIQUEMENT AU FORMAT JSON VALIDE. 
+Analyse l'objet principal dans l'image et renvoie CE SCHÉMA EXACT :
+
 {
-"recyclable": true | false,
-"type": "chaîne décrivant la catégorie de déchet (par exemple, plastique, papier, métal, verre, matière organique, etc.) ou null si non recyclable",
-"explanation": "une explication courte et claire expliquant pourquoi l'objet est recyclable ou non, et comment vous avez identifié le type",
-"quantity": "Une chaine représentant le poids de l'objet (par exemple petit, moyen, grand) ou null si non recyclable",
-"kwetche": "une nombre représentant la quantitité de points de recyclage de l'objet (par exemple, 0-100) basé sur son poids. Par exemple un objet de 1kg rapporte 100 points de recyclage, un objet de 0.5kg rapporte 50 points de recyclage, etc.",
+  "recyclable": true|false,
+  "type": "plastique|papier|métal|verre|null",
+  "explanation": "2-3 phrases max",
+  "quantity": "petit|moyen|grand|null",
+  "kwetche": "nombre entre 0 et 100"
 }
 
+Exemple de réponse valide :
+```json
+{
+  "recyclable": true,
+  "type": "plastique",
+  "explanation": "Bouteille en PET recyclable",
+  "quantity": "moyen",
+  "kwetche": 50
+}
 Considérez uniquement l'objet principal au centre de l'image. N'en listez pas plusieurs. Ne fournissez pas de cadres de délimitation ni de métadonnées visuelles.
 """
+
+def clean_gemini_response(text: str) -> dict:
+    """Nettoie la réponse de Gemini pour extraire le JSON valide."""
+    try:
+        # Supprime les marqueurs ```json et autres artefacts
+        cleaned = re.sub(r'```json|```', '', text).strip()
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        # Tentative de récupération du JSON même si mal formaté
+        start = text.find('{')
+        end = text.rfind('}') + 1
+        if start != -1 and end != 0:
+            return json.loads(text[start:end])
+        raise
 
 # Endpoint pour analyser l'image
 @app.post("/analyze/")
 async def analyze_image(file: UploadFile = File(...)):
     try:
-        # Charger l'image depuis le fichier
+        # Vérification du type de fichier
+        if not file.content_type.startswith('image/'):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Seules les images sont acceptées"}
+            )
+
         img = Image.open(BytesIO(await file.read()))
-        
-        # Générer la réponse du modèle
         response = model.generate_content([img, prompt])
         
-        # Récupérer le texte de la réponse du modèle
-        result = response.text
+        if not response.text:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Réponse vide de l'API Gemini"}
+            )
 
-        # Parse la réponse texte en JSON Python
-        result_json = json.loads(response.text)
+        # Nettoyage et validation de la réponse
+        result = clean_gemini_response(response.text)
+        
+        # Retourne directement l'objet JSON parsé
+        return result
 
-        # Retourner la réponse sous forme de JSON
-        return JSONResponse(content={"result": result_json})
-
+    except json.JSONDecodeError as e:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "Réponse JSON invalide de Gemini",
+                "details": str(e),
+                "raw_response": response.text if 'response' in locals() else None
+            }
+        )
     except Exception as e:
-        return JSONResponse(status_code=500, content={"message": f"An error occurred: {str(e)}"})
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Erreur interne: {str(e)}"}
+        )
