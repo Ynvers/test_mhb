@@ -23,16 +23,25 @@ app = FastAPI()
 
 # Définir le prompt que l'on envoie au modèle
 prompt = """
-Please analyze the central object in the provided image and determine whether it is a recyclable waste item.
+Veuillez analyser l’objet principal au centre de l’image fournie et déterminer s’il s’agit d’un déchet recyclable.
+Si c’est le cas, classez-le selon l’une des catégories suivantes :
+    - Plastique : bouteilles, flacons, pots de yaourt, barquettes, sacs, films plastiques…
+    - Papier/Carton : journaux, feuilles, cahiers, boîtes d’emballage, cartons…
+    - Métal : canettes, boîtes de conserve, barquettes en aluminium, capsules, aérosols vides…
+    - Verre : bouteilles, pots, bocaux, flacons…
+   
+Si l’objet n’est pas dans la liste, indiquez "recyclable": false
 
-Return your answer strictly in the following JSON format:
+Renvoyez votre réponse au format JSON suivant :
 {
-  "recyclable": true | false,
-  "type": "string describing the category of waste (e.g., plastic, paper, metal, glass, organic, etc.) or null if not recyclable",
-  "explanation": "a short and clear explanation for why the object is or is not recyclable, and how you identified the type"
+"recyclable": true | false,
+"type": "chaîne décrivant la catégorie de déchet (par exemple, plastique, papier, métal, verre, matière organique, etc.) ou null si non recyclable",
+"explanation": "une explication courte et claire expliquant pourquoi l'objet est recyclable ou non, et comment vous avez identifié le type",
+"quantity": "Une chaine représentant le poids de l'objet (par exemple petit, moyen, grand) ou null si non recyclable",
+"kwetche": "une nombre représentant la quantitité de points de recyclage de l'objet (par exemple, 0-100) basé sur son poids. Par exemple un objet de 1kg rapporte 100 points de recyclage, un objet de 0.5kg rapporte 50 points de recyclage, etc.",
 }
 
-Only consider the main object in the center of the image. Do not list multiple objects. Do not provide bounding boxes or any visual metadata.
+Considérez uniquement l'objet principal au centre de l'image. N'en listez pas plusieurs. Ne fournissez pas de cadres de délimitation ni de métadonnées visuelles.
 """
 
 # Endpoint pour analyser l'image
