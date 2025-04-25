@@ -5,13 +5,10 @@ from PIL import Image
 import google.generativeai as genai
 from io import BytesIO
 import os
-from dotenv import load_dotenv
 
-# Charger les variables d'environnement depuis le fichier .env
-load_dotenv()
 
 # Configuration
-API_KEY = os.getenv('GEMINI_API_KEY')  # Assure-toi que ta clé API est correctement définie
+API_KEY = os.environ.get('GEMINI_API_KEY')  # Assure-toi que ta clé API est correctement définie
 print(f"API_KEY: {API_KEY}")
 genai.configure(api_key=API_KEY)
 
