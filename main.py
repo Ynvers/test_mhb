@@ -5,6 +5,7 @@ from PIL import Image
 import google.generativeai as genai
 from io import BytesIO
 import os
+import json
 
 
 # Configuration
@@ -49,16 +50,14 @@ async def analyze_image(file: UploadFile = File(...)):
         img = Image.open(BytesIO(await file.read()))
         
         # Générer la réponse du modèle
-        response = model.generate_content([
-            img,
-            (
-                prompt
-            ),
-        ])
+        response = model.generate_content([img, prompt])
         
         # Récupérer le texte de la réponse du modèle
         result = response.text
 
+        # Parse la réponse texte en JSON Python
+        result_json = json.loads(response.text)
+        
         # Retourner la réponse sous forme de JSON
         return JSONResponse(content={"result": result})
 
